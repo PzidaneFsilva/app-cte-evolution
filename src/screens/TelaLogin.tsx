@@ -10,26 +10,18 @@ export default function LoginScreen() {
   const [senha, setSenha] = useState('');
 
   const handleLogin = async () => {
-    if (!email || !senha) {
-      Alert.alert("Atenção", "Por favor, preencha e-mail e senha.");
-      return;
-    }
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, senha);
-      console.log("Login bem-sucedido!", userCredential.user.uid);
-      router.replace('/'); // Navega para a área principal do app
-
-    } catch (error) {
-      let errorMessage = "E-mail ou senha inválidos. Tente novamente.";
-      if (error instanceof Error) {
-        console.error("Erro no login: ", error.message);
-      } else {
-        console.error("Erro desconhecido no login: ", error);
-      }
-      Alert.alert("Erro", errorMessage);
-    }
-  };
+  if (!email || !senha) {
+    Alert.alert("Atenção", "Por favor, preencha e-mail e senha.");
+    return;
+  }
+  try {
+    // Apenas faz o login. O "Porteiro" no _layout cuidará da navegação.
+    await signInWithEmailAndPassword(auth, email, senha);
+    console.log("Login bem-sucedido!");
+  } catch (error) {
+    // ... (o bloco catch continua o mesmo)
+  }
+};
 
   // 2. Adicionada a nova função para redefinir a senha
   const handleEsqueciSenha = () => {

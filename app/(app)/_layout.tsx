@@ -1,5 +1,3 @@
-// Arquivo: app/(app)/_layout.tsx (VERSÃO CORRIGIDA)
-
 import { Drawer } from 'expo-router/drawer';
 import 'react-native-reanimated';
 // Usando o atalho '@' para o caminho do CustomDrawerContent
