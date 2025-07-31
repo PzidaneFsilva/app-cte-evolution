@@ -42,10 +42,11 @@ export default function TelaCadastro() {
         email: email,
         celular: celular,
         role: "aluno",
+        status: "pendente",
         createdAt: new Date(),
       });
       
-      console.log("Usuário criado com sucesso no Auth e Firestore!");
+      console.log("Usuário criado com status pendente!");
       router.back();
 
     } catch (error) {
