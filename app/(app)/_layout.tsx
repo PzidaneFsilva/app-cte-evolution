@@ -1,7 +1,8 @@
+// Arquivo: app/(app)/_layout.tsx (VERSÃO ATUALIZADA)
+
+import CustomDrawerContent from '@/components/CustomDrawerContent';
 import { Drawer } from 'expo-router/drawer';
 import 'react-native-reanimated';
-// Usando o atalho '@' para o caminho do CustomDrawerContent
-import CustomDrawerContent from '@/components/CustomDrawerContent';
 
 export default function AppLayout() {
   return (
@@ -11,9 +12,10 @@ export default function AppLayout() {
         headerShown: false,
       }}
     >
-      {/* As telas agora estão descomentadas e visíveis para o navegador */}
       <Drawer.Screen name="(tabs)" options={{ drawerLabel: 'Início' }} />
       <Drawer.Screen name="agenda" options={{ drawerLabel: 'Agenda' }} />
+      {/* ADICIONE ESTA LINHA PARA A TELA DE PERFIL */}
+      <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />
     </Drawer>
   );
 }

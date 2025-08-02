@@ -2,13 +2,15 @@
 
 import { auth, firestore } from '@/config/firebaseConfig';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore'; // ATENÇÃO: getDoc foi trocado por onSnapshot
+import { doc, onSnapshot } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+// 1. ADICIONE A PROPRIEDADE DA FOTO DE PERFIL
 interface UserData {
   role: string;
   status: string;
   nomeCompleto?: string;
+  profilePicUrl?: string; // <-- NOVO
 }
 
 interface AuthContextType {
@@ -30,40 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let firestoreUnsubscribe: () => void;
-
     const authUnsubscribe = onAuthStateChanged(auth, (user) => {
-      // Limpa o listener anterior sempre que o usuário mudar (login/logout)
-      if (firestoreUnsubscribe) {
-        firestoreUnsubscribe();
-      }
-
+      if (firestoreUnsubscribe) { firestoreUnsubscribe(); }
       setUser(user);
       
       if (user) {
         setIsLoading(true);
         const userDocRef = doc(firestore, "usuarios", user.uid);
-
-        // --- MUDANÇA PRINCIPAL: DE getDoc PARA onSnapshot ---
-        // onSnapshot "escuta" por mudanças no documento em tempo real.
         firestoreUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            const role = data.role || 'aluno';
-            let status = data.status;
-
-            // A mesma lógica de antes para definir status
-            if (role === 'staff' || role === 'administrador') {
-              if (status !== 'bloqueado' && status !== 'suspenso') {
-                status = 'aprovado';
-              }
-            } else {
-              status = status || 'pendente';
-            }
-
             setUserData({ 
-              role: role, 
-              status: status,
-              nomeCompleto: data.nomeCompleto 
+              role: data.role || 'aluno', 
+              status: data.status || 'pendente',
+              nomeCompleto: data.nomeCompleto,
+              profilePicUrl: data.profilePicUrl // <-- 2. BUSQUE A URL DA FOTO
             });
           } else {
             setUserData({ role: 'aluno', status: 'pendente' });
@@ -74,20 +57,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
             setUserData(null);
         });
-
       } else {
-        // Se não há usuário, zera os dados.
         setUserData(null);
         setIsLoading(false);
       }
     });
 
-    // Função de limpeza: será chamada quando o componente for desmontado
     return () => {
       authUnsubscribe();
-      if (firestoreUnsubscribe) {
-        firestoreUnsubscribe();
-      }
+      if (firestoreUnsubscribe) { firestoreUnsubscribe(); }
     };
   }, []);
 

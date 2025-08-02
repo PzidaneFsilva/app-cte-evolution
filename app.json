@@ -16,7 +16,12 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.appfinal"
     },
     "web": {
       "bundler": "metro",
@@ -32,6 +37,13 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app precisa de acesso à sua galeria para que você possa escolher uma foto para o seu perfil e para os posts no feed.",
+          "cameraPermission": "O app precisa de acesso à sua câmera para que você possa tirar uma foto para o seu perfil ou para um novo post."
         }
       ]
     ],

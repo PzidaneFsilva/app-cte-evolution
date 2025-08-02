@@ -2,6 +2,7 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
+import 'firebase/compat/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyABxpA4Wf7eOQUNANrpMj6fQMeQD8fVHek",
@@ -19,3 +20,4 @@ if (!firebase.apps.length) {
 
 export const auth = firebase.auth();
 export const firestore = firebase.firestore();
+export const storage = firebase.storage(); // 3. EXPORTAÇÃO DO STORAGE
