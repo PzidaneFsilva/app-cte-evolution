@@ -21,22 +21,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Feather name="home" size={28} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explorar',
-          tabBarIcon: ({ color }) => <Feather name="compass" size={28} color={color} />,
-        }}
-      />
       
-      {/* --- CORREÇÃO AQUI --- */}
-      {/* A tela 'admin' é sempre declarada, mas só é navegável se a condição for atendida. */}
+      {/* --- O BLOCO DA TELA 'EXPLORE' FOI REMOVIDO DAQUI --- */}
+      
       <Tabs.Screen
         name="admin"
         options={{
           title: 'Admin',
           tabBarIcon: ({ color }) => <Feather name="shield" size={28} color={color} />,
-          // Se a condição não for atendida, 'href: null' esconde a aba da barra.
           href: (userData?.role === 'administrador' || userData?.role === 'staff') 
             ? '/admin' 
             : null,

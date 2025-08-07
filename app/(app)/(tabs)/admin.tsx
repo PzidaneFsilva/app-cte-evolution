@@ -1,15 +1,18 @@
-// Arquivo: app/(app)/(tabs)/admin.tsx (VERSÃO COM HIERARQUIA CORRIGIDA)
+// Arquivo: app/(app)/(tabs)/admin.tsx (VERSÃO COM MODAL DE EXCLUSÃO MODERNIZADO)
 
 import { firestore } from '@/config/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  // 1. IMPORTAR OS COMPONENTES 'Modal' E 'Pressable'
+  Modal,
+  Pressable,
   RefreshControl,
   SafeAreaView,
   StyleSheet,
@@ -28,13 +31,17 @@ interface Usuario {
 }
 
 export default function AdminPanelScreen() {
-  const { user, userData } = useAuth(); // ATUALIZADO: Pegar também o 'user' para o ID
+  const { user, userData } = useAuth();
   const [usuariosPendentes, setUsuariosPendentes] = useState<Usuario[]>([]);
   const [usuariosAtivos, setUsuariosAtivos] = useState<Usuario[]>([]);
   const [usuariosSuspensos, setUsuariosSuspensos] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [abaSelecionada, setAbaSelecionada] = useState<'pendentes' | 'ativos' | 'suspensos'>('pendentes');
+
+  // 2. NOVOS ESTADOS PARA CONTROLAR O MODAL
+  const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<Usuario | null>(null);
 
   const fetchUsuarios = async () => {
     setLoading(true);
@@ -80,14 +87,48 @@ export default function AdminPanelScreen() {
       Alert.alert("Erro", "Não foi possível atualizar o usuário.");
     }
   };
+  
+  // 3. FUNÇÃO ATUALIZADA: AGORA APENAS ABRE O MODAL
+  const handleDeleteUser = (usuario: Usuario) => {
+    setUserToDelete(usuario);
+    setDeleteModalVisible(true);
+  };
 
-  // --- FUNÇÃO ATUALIZADA COM A LÓGICA DE HIERARQUIA COMPLETA ---
+  // 4. NOVA FUNÇÃO: EXECUTA A EXCLUSÃO QUANDO O MODAL É CONFIRMADO
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      await deleteDoc(doc(firestore, "usuarios", userToDelete.id));
+      Alert.alert("Sucesso!", `O usuário "${userToDelete.nomeCompleto}" foi excluído.`);
+      fetchUsuarios(); // Atualiza a lista
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      Alert.alert("Erro", "Não foi possível excluir o usuário.");
+    } finally {
+      setDeleteModalVisible(false); // Fecha o modal
+      setUserToDelete(null); // Limpa o estado
+    }
+  };
+  
+  const renderUsuarioPendente = ({ item }: { item: Usuario }) => (
+    <View style={styles.userCard}>
+      <View style={styles.userInfo}>
+        <Text style={styles.userName}>{item.nomeCompleto}</Text>
+        <Text style={styles.userDetails}>{item.email}</Text>
+      </View>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.denyButton} onPress={() => handleUpdateUser(item.id, { status: 'bloqueado' })}>
+          <Feather name="x" size={20} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.approveButton} onPress={() => handleUpdateUser(item.id, { status: 'aprovado' })}>
+          <Feather name="check" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const renderUsuarioAtivo = ({ item }: { item: Usuario }) => {
-    // Nenhuma ação deve ser visível se:
-    // 1. O usuário alvo for 'staff'.
-    // 2. O usuário alvo for a mesma pessoa que está logada.
     const canManage = item.role !== 'staff' && item.id !== user?.uid;
-
     return (
       <View style={styles.userCard}>
           <View style={styles.userInfo}>
@@ -98,19 +139,14 @@ export default function AdminPanelScreen() {
           
           {canManage && (
             <View style={styles.actions}>
-                {/* LÓGICA DO BOTÃO SUSPENDER */}
                 {(
-                  // Staff pode suspender admins e alunos
                   userData?.role === 'staff' ||
-                  // Admin SÓ pode suspender alunos
                   (userData?.role === 'administrador' && item.role === 'aluno')
                 ) && (
                   <TouchableOpacity style={styles.suspendButton} onPress={() => handleUpdateUser(item.id, { status: 'suspenso' })}>
                       <Feather name="pause-circle" size={20} color="white" />
                   </TouchableOpacity>
                 )}
-
-                {/* LÓGICA DOS BOTÕES PROMOVER/REBAIXAR (SÓ PARA STAFF) */}
                 {userData?.role === 'staff' && (
                     <>
                         {item.role === 'aluno' && (
@@ -131,24 +167,6 @@ export default function AdminPanelScreen() {
     );
   };
   
-  // As outras funções de renderização e a estrutura principal permanecem as mesmas.
-  const renderUsuarioPendente = ({ item }: { item: Usuario }) => (
-    <View style={styles.userCard}>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.nomeCompleto}</Text>
-        <Text style={styles.userDetails}>{item.email}</Text>
-      </View>
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.denyButton} onPress={() => handleUpdateUser(item.id, { status: 'bloqueado' })}>
-          <Feather name="x" size={20} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.approveButton} onPress={() => handleUpdateUser(item.id, { status: 'aprovado' })}>
-          <Feather name="check" size={20} color="white" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-  
   const renderUsuarioSuspenso = ({ item }: { item: Usuario }) => (
     <View style={styles.userCard}>
       <View style={styles.userInfo}>
@@ -156,6 +174,9 @@ export default function AdminPanelScreen() {
         <Text style={styles.userDetails}>{item.email}</Text>
       </View>
       <View style={styles.actions}>
+        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteUser(item)}>
+            <Feather name="trash-2" size={20} color="white" />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.approveButton} onPress={() => handleUpdateUser(item.id, { status: 'aprovado' })}>
           <Feather name="play-circle" size={20} color="white" />
         </TouchableOpacity>
@@ -205,6 +226,38 @@ export default function AdminPanelScreen() {
         </TouchableOpacity>
       </View>
       {renderLista()}
+
+      {/* 5. ADICIONAR O COMPONENTE MODAL À TELA */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isDeleteModalVisible}
+        onRequestClose={() => {
+          setDeleteModalVisible(false);
+          setUserToDelete(null);
+        }}
+      >
+        <Pressable 
+          style={styles.deleteModalBackdrop} 
+          onPress={() => setDeleteModalVisible(false)} // Permite fechar clicando fora
+        >
+            <Pressable style={styles.deleteModalView}>
+                <Text style={styles.deleteModalTitle}>Excluir Usuário</Text>
+                <Text style={styles.deleteModalSubtitle}>
+                  Tem certeza que deseja excluir permanentemente a conta de "{userToDelete?.nomeCompleto}"? Esta ação não pode ser desfeita.
+                </Text>
+                <View style={styles.deleteModalButtonRow}>
+                  <TouchableOpacity style={[styles.deleteModalButton, styles.cancelButton]} onPress={() => setDeleteModalVisible(false)}>
+                      <Text style={[styles.deleteModalButtonText, styles.cancelButtonText]}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.deleteModalButton, styles.confirmDeleteButton]} onPress={confirmDeleteUser}>
+                      <Text style={styles.deleteModalButtonText}>Sim, excluir</Text>
+                  </TouchableOpacity>
+                </View>
+            </Pressable>
+        </Pressable>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -226,6 +279,7 @@ const styles = StyleSheet.create({
     actions: { flexDirection: 'row', alignItems: 'center' },
     approveButton: { backgroundColor: '#28a745', padding: 12, borderRadius: 50, marginLeft: 10, },
     denyButton: { backgroundColor: '#dc3545', padding: 12, borderRadius: 50, },
+    deleteButton: { backgroundColor: '#dc3545', padding: 12, borderRadius: 50, },
     suspendButton: { backgroundColor: '#ffc107', padding: 12, borderRadius: 50, },
     promoteButton: { backgroundColor: '#17a2b8', padding: 12, borderRadius: 50, marginLeft: 10, },
     demoteButton: { backgroundColor: '#6c757d', padding: 12, borderRadius: 50, marginLeft: 10, },
@@ -235,4 +289,64 @@ const styles = StyleSheet.create({
     aluno: { backgroundColor: '#007bff' },
     staff: { backgroundColor: '#6f42c1' },
     administrador: { backgroundColor: '#fd7e14' },
+
+    // --- 6. NOVOS ESTILOS PARA O MODAL ---
+    deleteModalBackdrop: { 
+      flex: 1, 
+      backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+      justifyContent: 'center', 
+      alignItems: 'center',
+    },
+    deleteModalView: { 
+      width: '90%', 
+      maxWidth: 340, 
+      backgroundColor: 'white', 
+      borderRadius: 16, // Bordas mais arredondadas
+      padding: 25, 
+      alignItems: 'center',
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5
+    },
+    deleteModalTitle: { 
+      fontSize: 20, 
+      fontWeight: 'bold', 
+      color: '#333', 
+      marginBottom: 10,
+    },
+    deleteModalSubtitle: { 
+      fontSize: 15, 
+      color: '#666', 
+      textAlign: 'center', 
+      marginBottom: 25, 
+      lineHeight: 22, 
+    },
+    deleteModalButtonRow: {
+      flexDirection: 'row',
+      width: '100%',
+    },
+    deleteModalButton: { 
+      flex: 1,
+      paddingVertical: 12, 
+      borderRadius: 25, // Botões estilo pílula
+      alignItems: 'center', 
+    },
+    confirmDeleteButton: { 
+      backgroundColor: '#dc3545', 
+      marginLeft: 5,
+    },
+    cancelButton: { 
+      backgroundColor: '#f0f2f5', 
+      marginRight: 5,
+    },
+    deleteModalButtonText: { 
+      color: 'white', 
+      fontSize: 16, 
+      fontWeight: 'bold', 
+    },
+    cancelButtonText: { 
+      color: '#333', 
+    },
 });

@@ -4,7 +4,6 @@ import { Feather } from '@expo/vector-icons';
 import { DrawerActions } from '@react-navigation/native';
 import { addDays, addMonths, differenceInCalendarDays, format, getDay, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { LinearGradient } from 'expo-linear-gradient'; // <-- IMPORTAÇÃO DO DEGRADÊ
 import { useNavigation } from 'expo-router';
 import { arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, where, writeBatch } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from 'react';
@@ -36,6 +35,8 @@ export default function TelaAgenda() {
     const [modalAdicionarVisivel, setModalAdicionarVisivel] = useState(false);
     const [modalCoachVisivel, setModalCoachVisivel] = useState(false);
     const [modalParticipantesVisivel, setModalParticipantesVisivel] = useState(false);
+    const [modalTipoAulaVisivel, setModalTipoAulaVisivel] = useState(false);
+    const [modalHorariosVisivel, setModalHorariosVisivel] = useState(false);
     const [horariosSelecionados, setHorariosSelecionados] = useState<string[]>([]);
     const [dataInicio, setDataInicio] = useState(new Date());
     const [dataFim, setDataFim] = useState(addMonths(new Date(), 1));
@@ -69,41 +70,162 @@ export default function TelaAgenda() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <LinearGradient colors={['#004A80', '#005A9C']} style={styles.calendarioContainer}>
-                <View style={styles.mesSelector}><TouchableOpacity onPress={openDrawer}><Feather name="chevron-left" size={30} color="white" /></TouchableOpacity><TouchableOpacity style={styles.mesBotao} onPress={() => setCalendarioVisivel(true)}><Text style={styles.mesTexto}>{nomeDoMes}</Text><Feather name="calendar" size={24} color="white" style={{ marginLeft: 10 }}/></TouchableOpacity><View style={{width: 30}}/></View>
-                <FlatList data={diasDaSemana} horizontal showsHorizontalScrollIndicator={false} keyExtractor={item => item.id} contentContainerStyle={{ paddingHorizontal: 10 }} renderItem={({ item }) => (<TouchableOpacity style={styles.diaContainer} onPress={() => setDataSelecionada(item.dataCompleta)}><Text style={[styles.diaSemanaTexto, item.id === format(dataSelecionada, 'yyyy-MM-dd') && styles.diaTextoSelecionadoFixo]}>{item.diaSemana}</Text><View style={[styles.diaMesContainer, item.id === format(dataSelecionada, 'yyyy-MM-dd') && styles.diaSelecionado]}><Text style={[styles.diaMesTexto, item.id === format(dataSelecionada, 'yyyy-MM-dd') && styles.diaTextoSelecionado]}>{item.diaMes}</Text></View></TouchableOpacity>)} />
-            </LinearGradient>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={openDrawer}>
+                    <Feather name="menu" size={26} color="#333" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>{nomeDoMes}</Text>
+                <TouchableOpacity onPress={() => setCalendarioVisivel(true)}>
+                    <Feather name="calendar" size={26} color="#333" />
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.diasListContainer}>
+                <FlatList 
+                    data={diasDaSemana} 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    keyExtractor={item => item.id} 
+                    contentContainerStyle={{ paddingHorizontal: 15 }} 
+                    renderItem={({ item }) => {
+                        const isSelected = item.id === format(dataSelecionada, 'yyyy-MM-dd');
+                        return (
+                            <TouchableOpacity 
+                                style={[styles.diaItemContainer, isSelected && styles.diaItemSelecionado]} 
+                                onPress={() => setDataSelecionada(item.dataCompleta)}
+                            >
+                                <Text style={[styles.diaSemana, isSelected && styles.textoSelecionado]}>{item.diaSemana}</Text>
+                                <Text style={[styles.diaNumero, isSelected && styles.textoSelecionado]}>{item.diaMes}</Text>
+                            </TouchableOpacity>
+                        );
+                    }} 
+                />
+            </View>
 
             <View style={styles.listaContainer}>{carregando ? (<ActivityIndicator style={{ marginTop: 50 }} size="large" color="#005A9C" />) : turmasDoDia.length > 0 ? (<FlatList data={turmasDoDia} keyExtractor={item => item.id} renderItem={TurmaCard} contentContainerStyle={{ padding: 20 }} />) : (<View style={styles.descansoContainer}><Feather name="coffee" size={60} color="#ccc" /><Text style={styles.descansoTitulo}>Dia de descanso!</Text><Text style={styles.descansoSubtitulo}>Nenhuma turma cadastrada.</Text></View>)}</View>
 
             {(userData?.role === 'administrador' || userData?.role === 'staff') && (<TouchableOpacity style={styles.fab} onPress={() => setModalAdicionarVisivel(true)}><Feather name="plus" size={28} color="white" /></TouchableOpacity>)}
             
             <Modal visible={modalParticipantesVisivel} transparent={true} animationType="fade" onRequestClose={() => setModalParticipantesVisivel(false)}><View style={styles.modalContainer}><View style={styles.pickerModalView}><Text style={styles.modalTitle}>Inscritos - {turmaSelecionada?.titulo}</Text><Text style={styles.modalSubtitle}>{turmaSelecionada?.horario}</Text>{carregandoParticipantes ? (<ActivityIndicator size="large" color="#005A9C" style={{ marginVertical: 20 }}/>) : participantes.length > 0 ? (<FlatList data={participantes} keyExtractor={(item) => item.id} renderItem={({ item }) => (<View style={styles.participanteItem}><Text style={styles.participanteNome}>{item.nome}</Text></View>)} style={{ width: '100%', maxHeight: 300 }} />) : (<Text style={styles.semInscritosTexto}>Nenhum aluno inscrito nesta turma.</Text>)}<TouchableOpacity onPress={() => setModalParticipantesVisivel(false)}><Text style={styles.fecharModalTexto}>Fechar</Text></TouchableOpacity></View></View></Modal>
-            <Modal visible={modalAdicionarVisivel} transparent={true} animationType="slide" onRequestClose={() => setModalAdicionarVisivel(false)}><View style={styles.modalFormContainer}><ScrollView style={styles.modalFormView}><View style={styles.modalHeader}><Text style={styles.modalTitle}>Adicionar Turmas</Text><TouchableOpacity onPress={() => setModalAdicionarVisivel(false)}><Feather name="x" size={24} color="#333" /></TouchableOpacity></View><Text style={styles.label}>Tipo de Aula</Text><View style={styles.optionGroup}><TouchableOpacity style={[styles.optionButton, tipoDeAula === 'Crossfuncional' && styles.optionSelected]} onPress={() => setTipoDeAula('Crossfuncional')}><Text style={[styles.optionText, tipoDeAula === 'Crossfuncional' && styles.optionTextSelected]}>Crossfuncional</Text></TouchableOpacity><TouchableOpacity style={[styles.optionButton, tipoDeAula === 'L.P.O' && styles.optionSelected]} onPress={() => setTipoDeAula('L.P.O')}><Text style={[styles.optionText, tipoDeAula === 'L.P.O' && styles.optionTextSelected]}>L.P.O</Text></TouchableOpacity></View><Text style={styles.label}>Dias da Semana</Text><View style={styles.diasContainer}>{['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((diaLabel, index) => (<TouchableOpacity key={index} style={[styles.diaButton, diasSelecionados.includes(index) && styles.diaButtonSelected]} onPress={() => handleToggleDia(index)}><Text style={[styles.diaButtonText, diasSelecionados.includes(index) && styles.diaButtonTextSelected]}>{diaLabel}</Text></TouchableOpacity>))}</View><Text style={styles.label}>Horários</Text><View style={styles.horariosContainer}>{(tipoDeAula === 'L.P.O' ? HORARIOS_LPO_TER_QUI : HORARIOS_SEMANA).map(horario => (<TouchableOpacity key={horario} style={[styles.horarioButton, horariosSelecionados.includes(horario) && styles.optionSelected]} onPress={() => handleToggleHorario(horario)}><Text style={[styles.horarioText, horariosSelecionados.includes(horario) && styles.optionTextSelected]}>{horario.split(' - ')[0]}</Text></TouchableOpacity>))}</View><View style={styles.row}><View style={styles.inputWrapper}><Text style={styles.label}>Início</Text><TouchableOpacity style={styles.input} onPress={() => { setIsPickerParaInicio(true); setCalendarioVisivel(true); }}><Text style={styles.inputText}>{format(dataInicio, 'dd/MM/yyyy')}</Text></TouchableOpacity></View><View style={styles.inputWrapper}><Text style={styles.label}>Fim</Text><TouchableOpacity style={styles.input} onPress={() => { setIsPickerParaInicio(false); setCalendarioVisivel(true); }}><Text style={styles.inputText}>{format(dataFim, 'dd/MM/yyyy')}</Text></TouchableOpacity></View></View><View style={styles.row}><View style={styles.inputWrapper}><Text style={styles.label}>Vagas</Text><TextInput style={styles.input} value={vagas} onChangeText={setVagas} keyboardType="numeric" /></View><View style={styles.inputWrapper}><Text style={styles.label}>Coach</Text><TouchableOpacity style={styles.input} onPress={() => setModalCoachVisivel(true)}><Text style={styles.inputText} numberOfLines={1}>{coachSelecionado ? coachSelecionado.nome : 'Selecionar...'}</Text></TouchableOpacity></View></View><TouchableOpacity style={styles.saveButton} onPress={handleSalvarTurmas} disabled={salvando}>{salvando ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Criar Turmas</Text>}</TouchableOpacity></ScrollView></View></Modal>
+            <Modal visible={modalAdicionarVisivel} transparent={true} animationType="slide" onRequestClose={() => setModalAdicionarVisivel(false)}><View style={styles.modalFormContainer}><ScrollView style={styles.modalFormView}><View style={styles.modalHeader}><Text style={styles.modalTitle}>Adicionar Turmas</Text><TouchableOpacity onPress={() => setModalAdicionarVisivel(false)}><Feather name="x" size={24} color="#333" /></TouchableOpacity></View>
+            <Text style={styles.label}>Tipo de aula</Text>
+            <TouchableOpacity style={styles.input} onPress={() => setModalTipoAulaVisivel(true)}>
+                <Text style={styles.inputText}>{tipoDeAula || 'Selecione o tipo da aula'}</Text>
+            </TouchableOpacity>            
+            <Text style={styles.label}>Dias da Semana</Text><View style={styles.diasContainer}>{['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((diaLabel, index) => (<TouchableOpacity key={index} style={[styles.diaButton, diasSelecionados.includes(index) && styles.diaButtonSelected]} onPress={() => handleToggleDia(index)}><Text style={[styles.diaButtonText, diasSelecionados.includes(index) && styles.diaButtonTextSelected]}>{diaLabel}</Text></TouchableOpacity>))}</View>
+            <Text style={styles.label}>Horários</Text>
+            <TouchableOpacity style={styles.input} onPress={() => setModalHorariosVisivel(true)}>
+                <Text style={styles.inputText} numberOfLines={1}>
+                    {horariosSelecionados.length > 0 ? horariosSelecionados.map(h => h.split(':')[0]).join(', ') : 'Selecione os horários'}
+                </Text>
+            </TouchableOpacity>
+            <View style={styles.row}><View style={styles.inputWrapper}><Text style={styles.label}>Início</Text><TouchableOpacity style={styles.input} onPress={() => { setIsPickerParaInicio(true); setCalendarioVisivel(true); }}><Text style={styles.inputText}>{format(dataInicio, 'dd/MM/yyyy')}</Text></TouchableOpacity></View><View style={styles.inputWrapper}><Text style={styles.label}>Fim</Text><TouchableOpacity style={styles.input} onPress={() => { setIsPickerParaInicio(false); setCalendarioVisivel(true); }}><Text style={styles.inputText}>{format(dataFim, 'dd/MM/yyyy')}</Text></TouchableOpacity></View></View><View style={styles.row}><View style={styles.inputWrapper}><Text style={styles.label}>Vagas</Text><TextInput style={styles.input} value={vagas} onChangeText={setVagas} keyboardType="numeric" /></View><View style={styles.inputWrapper}><Text style={styles.label}>Coach</Text><TouchableOpacity style={styles.input} onPress={() => setModalCoachVisivel(true)}><Text style={styles.inputText} numberOfLines={1}>{coachSelecionado ? coachSelecionado.nome : 'Selecionar...'}</Text></TouchableOpacity></View></View><TouchableOpacity style={styles.saveButton} onPress={handleSalvarTurmas} disabled={salvando}>{salvando ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Criar Turmas</Text>}</TouchableOpacity></ScrollView></View></Modal>
             <Modal visible={calendarioVisivel} transparent={true} animationType="fade"><View style={styles.modalContainer}><View style={styles.calendarPopup}><Calendar current={modalAdicionarVisivel ? (isPickerParaInicio ? format(dataInicio, 'yyyy-MM-dd') : format(dataFim, 'yyyy-MM-dd')) : format(dataSelecionada, 'yyyy-MM-dd')} minDate={format(new Date(), 'yyyy-MM-dd')} onDayPress={(day) => { const novaData = new Date(day.timestamp + (new Date().getTimezoneOffset() * 60000)); if (modalAdicionarVisivel) { if (isPickerParaInicio) { setDataInicio(novaData); if (differenceInCalendarDays(dataFim, novaData) < 0) setDataFim(novaData); } else { if (differenceInCalendarDays(novaData, dataInicio) < 0) { Alert.alert("Data Inválida", "A data de fim não pode ser anterior à de início."); return; } setDataFim(novaData); } } else { setDataSelecionada(novaData); } setCalendarioVisivel(false); }} monthFormat={'MMMM yyyy'} theme={{ todayTextColor: '#005A9C', arrowColor: '#005A9C', selectedDayBackgroundColor: '#005A9C' }} /><TouchableOpacity onPress={() => setCalendarioVisivel(false)}><Text style={styles.fecharModalTexto}>Fechar</Text></TouchableOpacity></View></View></Modal>
             <Modal visible={modalCoachVisivel} transparent={true} animationType="fade" onRequestClose={() => setModalCoachVisivel(false)}><View style={styles.modalContainer}><View style={styles.pickerModalView}><Text style={styles.modalTitle}>Selecione o Coach</Text><FlatList data={listaDeCoaches} keyExtractor={(item) => item.id} renderItem={({ item }) => (<TouchableOpacity style={styles.pickerItem} onPress={() => { setCoachSelecionado(item); setModalCoachVisivel(false); }}><Text style={styles.pickerItemText}>{item.nome}</Text></TouchableOpacity>)} style={{ width: '100%' }} /><TouchableOpacity onPress={() => setModalCoachVisivel(false)}><Text style={styles.fecharModalTexto}>Cancelar</Text></TouchableOpacity></View></View></Modal>
+            {/* Modal para selecionar o Tipo de Aula */}
+            <Modal visible={modalTipoAulaVisivel} transparent={true} animationType="fade" onRequestClose={() => setModalTipoAulaVisivel(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.pickerModalView}>
+                        <Text style={styles.modalTitle}>Selecione o Tipo de Aula</Text>
+                        <TouchableOpacity style={styles.pickerItem} onPress={() => { setTipoDeAula('Crossfuncional'); setModalTipoAulaVisivel(false); }}>
+                            <Text style={styles.pickerItemText}>Crossfuncional</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.pickerItem} onPress={() => { setTipoDeAula('L.P.O'); setModalTipoAulaVisivel(false); }}>
+                            <Text style={styles.pickerItemText}>L.P.O</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setModalTipoAulaVisivel(false)}>
+                            <Text style={styles.fecharModalTexto}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal para selecionar os Horários */}
+            <Modal visible={modalHorariosVisivel} transparent={true} animationType="fade" onRequestClose={() => setModalHorariosVisivel(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.pickerModalView}>
+                        <Text style={styles.modalTitle}>Selecione os Horários</Text>
+                        <FlatList
+                            data={tipoDeAula === 'L.P.O' ? HORARIOS_LPO_TER_QUI : HORARIOS_SEMANA}
+                            keyExtractor={(item) => item}
+                            renderItem={({ item }) => {
+                                const isSelected = horariosSelecionados.includes(item);
+                                return (
+                                    <TouchableOpacity 
+                                        style={[styles.pickerItem, isSelected && styles.optionSelected]} 
+                                        onPress={() => handleToggleHorario(item)}
+                                    >
+                                        <Text style={[styles.pickerItemText, isSelected && styles.optionTextSelected]}>{item}</Text>
+                                    </TouchableOpacity>
+                                )
+                            }}
+                            style={{ width: '100%', maxHeight: 350 }} 
+                        />
+                        <TouchableOpacity onPress={() => setModalHorariosVisivel(false)}>
+                            <Text style={styles.fecharModalTexto}>Confirmar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F4F7FC' },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 50,
+        paddingBottom: 15,
+        backgroundColor: 'white',
+    },
+    headerTitle: {
+        fontSize: 22,
+        fontWeight: '400',
+        color: '#333',
+    },
+    diasListContainer: {
+        paddingVertical: 15,
+        backgroundColor: 'white',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0'
+    },
+    diaItemContainer: {
+        backgroundColor: '#f0f2f5',
+        borderRadius: 40,
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        marginHorizontal: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 55,
+    },
+    diaItemSelecionado: {
+        backgroundColor: '#005A9C',
+    },
+    diaSemana: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#71809694',
+        marginBottom: 4,
+    },
+    diaNumero: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#2d3748a9',
+    },
+    textoSelecionado: {
+        color: 'white',
+    },
+    container: { flex: 1, backgroundColor: 'white' },
     listaContainer: { flex: 1, backgroundColor: '#F4F7FC' },
-    calendarioContainer: { paddingTop: 50, paddingBottom: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35 },
-    mesSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 25, },
-    mesBotao: { flexDirection: 'row', alignItems: 'center', },
-    mesTexto: { fontSize: 24, fontWeight: 'bold', color: 'white', letterSpacing: 1, },
-    diaContainer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, height: 80, },
-    diaSemanaTexto: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 14, fontWeight: '500', marginBottom: 10, },
-    diaMesContainer: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center', },
-    diaMesTexto: { color: 'white', fontSize: 16, fontWeight: 'bold', },
-    diaSelecionado: { backgroundColor: 'white', },
-    diaTextoSelecionado: { color: '#005A9C', },
-    diaTextoSelecionadoFixo: { color: 'white', fontWeight: 'bold', },
     descansoContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
     descansoTitulo: { fontSize: 22, fontWeight: 'bold', color: '#4A5568', marginTop: 20, },
     descansoSubtitulo: { fontSize: 16, color: '#718096', marginTop: 8, textAlign: 'center' },
-    turmaCard: { backgroundColor: 'white', padding: 15, borderRadius: 15, marginBottom: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#9DBCE3', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5, borderLeftWidth: 5, },
+    turmaCard: { backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, borderLeftWidth: 5, },
     cardInscrito: { backgroundColor: '#E8F5E9', shadowColor: '#2E7D32', },
     turmaInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
     turmaTextos: { marginLeft: 15, flex: 1 },
@@ -120,30 +242,24 @@ const styles = StyleSheet.create({
     modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.6)', },
     calendarPopup: { backgroundColor: 'white', borderRadius: 20, padding: 20, width: '90%', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 },
     fecharModalTexto: { textAlign: 'center', color: '#005A9C', fontWeight: 'bold', marginTop: 20, fontSize: 16, padding: 10 },
-    fab: { position: 'absolute', width: 60, height: 60, borderRadius: 30, backgroundColor: '#005A9C', justifyContent: 'center', alignItems: 'center', right: 20, bottom: 30, elevation: 8, },
+    fab: { position: 'absolute', width: 60, height: 60, borderRadius: 30, backgroundColor: '#005A9C', justifyContent: 'center', alignItems: 'center', right: 20, bottom: 70, elevation: 8, },
     modalFormContainer: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' },
-    modalFormView: { width: '100%', backgroundColor: 'white', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 20, maxHeight: '90%' },
+    modalFormView: { width: '100%', backgroundColor: '#f0f2f5', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 20, maxHeight: '90%' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#2D3748' },
-    label: { fontSize: 16, fontWeight: '600', color: '#4A5568', marginBottom: 10, marginTop: 15, },
-    optionGroup: { flexDirection: 'row', backgroundColor: '#EDF2F7', borderRadius: 12, overflow: 'hidden' },
-    optionButton: { flex: 1, padding: 14, alignItems: 'center', },
-    optionSelected: { backgroundColor: '#005A9C', },
-    optionText: { fontSize: 15, fontWeight: 'bold', color: '#005A9C', },
+    modalTitle: { fontSize: 20, fontWeight: '600', color: '#112547ff' },
+    label: { fontSize: 16, fontWeight: '500', color: '#4A5568', marginBottom: 8, marginTop: 15, },
+    optionSelected: { backgroundColor: 'white', },
     optionTextSelected: { color: 'white', },
     row: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: -5 },
     inputWrapper: { flex: 1, marginHorizontal: 5 },
-    input: { backgroundColor: '#EDF2F7', height: 50, borderRadius: 12, paddingHorizontal: 15, fontSize: 16, justifyContent: 'center', borderWidth: 1, borderColor: '#CBD5E0' },
+    input: { backgroundColor: 'white', height: 40, borderRadius: 30, paddingHorizontal: 15, fontSize: 16, justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
     inputText: { fontSize: 16, color: '#2D3748' },
     diasContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 15, },
-    diaButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EDF2F7', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E0' },
+    diaButton: { width: 40, height: 42, borderRadius: 20, backgroundColor: '#EDF2F7', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E0' },
     diaButtonSelected: { backgroundColor: '#005A9C', borderColor: '#005A9C' },
-    diaButtonText: { color: '#005A9C', fontWeight: 'bold', fontSize: 16 },
+    diaButtonText: { color: '#4A5568', fontWeight: '600', fontSize: 14 },
     diaButtonTextSelected: { color: 'white', },
-    horariosContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-    horarioButton: { width: '31.5%', paddingVertical: 15, backgroundColor: '#EDF2F7', borderRadius: 10, alignItems: 'center', marginBottom: 10, borderWidth: 1, borderColor: '#CBD5E0' },
-    horarioText: { fontSize: 16, fontWeight: 'bold', color: '#005A9C', },
-    saveButton: { backgroundColor: '#005A9C', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 30, marginBottom: 40, },
+    saveButton: { backgroundColor: '#007BFF', padding: 16, borderRadius: 25, alignItems: 'center', marginTop: 30, marginBottom: 40, },
     saveButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold', },
     pickerModalView: { width: '90%', maxHeight: '80%', backgroundColor: 'white', borderRadius: 20, padding: 20, alignItems: 'center' },
     pickerItem: { paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: '#EDF2F7', width: '100%' },

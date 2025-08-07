@@ -1,5 +1,6 @@
-// Imports para TelaCadastro.tsx
-import { auth, firestore } from '@/config/firebaseConfig'; // Importa 'auth' e 'firestore'
+// Arquivo: src/screens/TelaCadastro.tsx (VERSÃO COM INPUTS ESTILO PÍLULA)
+
+import { auth, firestore } from '@/config/firebaseConfig';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
@@ -17,7 +18,7 @@ export default function TelaCadastro() {
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
   const handleCadastro = async () => {
-    // Validações
+    // A lógica de cadastro permanece a mesma...
     if (!nome || !sobrenome || !celular || !email || !senha || !confirmarSenha) {
       Alert.alert("Erro", "Por favor, preencha todos os campos.");
       return;
@@ -50,8 +51,6 @@ export default function TelaCadastro() {
       router.back();
 
     } catch (error) {
-      console.error("Erro no cadastro: ", error);
-      // 2. BLOCO 'CATCH' CORRIGIDO PARA O TYPESCRIPT
       if (typeof error === 'object' && error !== null && 'code' in error) {
         const firebaseError = error as { code: string };
         if (firebaseError.code === 'auth/email-already-in-use') {
@@ -69,32 +68,54 @@ export default function TelaCadastro() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Cabeçalho */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Feather name="chevron-left" size={28} color="white" />
+          <Feather name="chevron-left" size={28} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cadastro</Text>
+        <Text style={styles.headerTitle}>Crie sua Conta</Text>
         <View style={{width: 28}} />
       </View>
 
-      {/* Corpo do Formulário */}
-      <ScrollView style={styles.body}>
+      <ScrollView contentContainerStyle={styles.body}>
+        <Text style={styles.subtitle}>Preencha seus dados para começar a treinar.</Text>
+
         <View style={styles.row}>
-          <TextInput style={[styles.input, styles.inputHalf]} placeholder="Nome" value={nome} onChangeText={setNome} />
-          <TextInput style={[styles.input, styles.inputHalf]} placeholder="Sobrenome" value={sobrenome} onChangeText={setSobrenome} />
+          <View style={[styles.inputContainer, styles.inputHalf]}>
+            <Feather name="user" size={20} color="#888" style={styles.inputIcon} />
+            <TextInput style={styles.input} placeholder="Nome" value={nome} onChangeText={setNome} placeholderTextColor="#888" />
+          </View>
+          <View style={[styles.inputContainer, styles.inputHalf]}>
+            <TextInput style={styles.input} placeholder="Sobrenome" value={sobrenome} onChangeText={setSobrenome} placeholderTextColor="#888" />
+          </View>
         </View>
-        <MaskedTextInput
-          mask="(99) 99999-9999"
-          style={styles.input}
-          placeholder="Número do celular"
-          keyboardType="phone-pad"
-          value={celular}
-          onChangeText={setCelular}
-        />
-        <TextInput style={styles.input} placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        <TextInput style={styles.input} placeholder="Senha (mín. 6 caracteres)" value={senha} onChangeText={setSenha} secureTextEntry />
-        <TextInput style={styles.input} placeholder="Confirmar Senha" value={confirmarSenha} onChangeText={setConfirmarSenha} secureTextEntry />
+
+        <View style={styles.inputContainer}>
+          <Feather name="smartphone" size={20} color="#888" style={styles.inputIcon} />
+          <MaskedTextInput
+            mask="(99) 99999-9999"
+            style={styles.input}
+            placeholder="Número do celular"
+            keyboardType="phone-pad"
+            value={celular}
+            onChangeText={setCelular}
+            placeholderTextColor="#888"
+          />
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <Feather name="mail" size={20} color="#888" style={styles.inputIcon} />
+          <TextInput style={styles.input} placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#888" />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Feather name="lock" size={20} color="#888" style={styles.inputIcon} />
+          <TextInput style={styles.input} placeholder="Senha (mín. 6 caracteres)" value={senha} onChangeText={setSenha} secureTextEntry placeholderTextColor="#888" />
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <Feather name="lock" size={20} color="#888" style={styles.inputIcon} />
+          <TextInput style={styles.input} placeholder="Confirmar Senha" value={confirmarSenha} onChangeText={setConfirmarSenha} secureTextEntry placeholderTextColor="#888" />
+        </View>
 
         <TouchableOpacity style={styles.button} onPress={handleCadastro}>
           <Text style={styles.buttonText}>CRIAR CONTA</Text>
@@ -104,14 +125,89 @@ export default function TelaCadastro() {
   );
 }
 
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#005A9C' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#005A9C' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white' },
-  body: { flex: 1, backgroundColor: '#f0f2f5', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 20 },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
-  input: { backgroundColor: 'white', height: 50, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 15, marginBottom: 15, fontSize: 16 },
-  inputHalf: { width: '48%' },
-  button: { width: '100%', height: 50, backgroundColor: '#005A9C', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 10, },
-  buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f0f2f5' 
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 20, 
+    paddingBottom: 15,
+    paddingTop: 50,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0'
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#333'
+  },
+  body: { 
+    paddingHorizontal: 25,
+    paddingVertical: 20,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  row: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  // ALTERAÇÃO AQUI
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 27.5, // <-- Raio da borda alterado para metade da altura (55 / 2)
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    paddingHorizontal: 20, // Padding aumentado para dar espaço ao ícone
+    height: 55, 
+    marginBottom: 15, 
+  },
+  input: { 
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    color: '#333',
+  },
+  inputHalf: { 
+    width: '48.5%', 
+    marginBottom: 0, 
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  // E ALTERAÇÃO AQUI
+  button: { 
+    height: 55, 
+    backgroundColor: '#007bff', 
+    borderRadius: 27.5, // <-- Raio da borda alterado para metade da altura (55 / 2)
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  buttonText: { 
+    color: 'white', 
+    fontSize: 16, 
+    fontWeight: 'bold',
+    letterSpacing: 0.5
+  },
 });

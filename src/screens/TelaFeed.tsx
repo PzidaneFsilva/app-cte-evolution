@@ -1,4 +1,4 @@
-// Arquivo: src/screens/TelaFeed.tsx (VERSÃO COM LAYOUT LIMPO)
+// Arquivo: src/screens/TelaFeed.tsx (VERSÃO COMPLETA E FUNCIONAL)
 
 import { Feather } from '@expo/vector-icons';
 import { DrawerActions, useFocusEffect } from '@react-navigation/native';
@@ -26,7 +26,13 @@ export default function TelaFeed() {
   const navigation = useNavigation();
 
   const fetchPosts = useCallback(() => {
-    const q = query(collection(firestore, "posts"), orderBy("timestamp", "desc"));
+    // Consulta correta: Ordena primeiro por 'isPinned' (fixado) e depois por data
+    const q = query(
+      collection(firestore, "posts"), 
+      orderBy("isPinned", "desc"), 
+      orderBy("timestamp", "desc")
+    );
+    
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const postsData: Post[] = [];
       querySnapshot.forEach((doc) => {
@@ -65,7 +71,6 @@ export default function TelaFeed() {
         <View style={{ width: 26 }} />
       </View>
 
-      {/* A LOGO FOI REMOVIDA DAQUI */}
       <View style={styles.feedContainer}>
         {loading ? (
           <ActivityIndicator style={{ flex: 1 }} size="large" color="#005A9C" />
@@ -91,7 +96,7 @@ export default function TelaFeed() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
+  container: { flex: 1, backgroundColor: '#eaf5ff' },
   header: {
     padding: 15,
     paddingTop: 50,
@@ -105,7 +110,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   list: { paddingVertical: 10 },
   emptyText: { textAlign: 'center', marginTop: 50, color: 'gray', fontSize: 16 },
-  feedContainer: { // ESTILO SIMPLIFICADO
+  feedContainer: {
     flex: 1,
   },
 });

@@ -1,16 +1,34 @@
-// ficheiro: CustomDrawerContent.tsx (VERSÃO ATUALIZADA)
+// Arquivo: src/components/CustomDrawerContent.tsx (VERSÃO COM NOVO BOTÃO DE SAIR)
 
-import { useAuth } from '@/context/AuthContext'; // 1. IMPORTE O useAuth
+import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
-import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { router } from 'expo-router';
+import { DrawerContentScrollView } from '@react-navigation/drawer';
+import { router, useSegments } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { auth } from '../config/firebaseConfig';
 
+interface CustomDrawerButtonProps {
+  label: string;
+  onPress: () => void;
+  isActive: boolean;
+  iconName?: keyof typeof Feather.glyphMap;
+}
+
+const CustomDrawerButton = ({ label, iconName, onPress, isActive }: CustomDrawerButtonProps) => (
+  <TouchableOpacity
+    style={[styles.customButton, isActive && styles.customButtonActive]}
+    onPress={onPress}
+  >
+    {iconName && <Feather name={iconName} size={22} color={isActive ? 'white' : '#555'} style={styles.icon} />}
+    <Text style={[styles.customButtonText, isActive && styles.customButtonTextActive]}>{label}</Text>
+  </TouchableOpacity>
+);
+
 export default function CustomDrawerContent(props: any) {
-  const { userData } = useAuth(); // 2. PEGUE OS DADOS DO USUÁRIO
+  const { userData, isLoading } = useAuth();
+  const segments = useSegments();
 
   const handleLogout = async () => {
     try {
@@ -21,7 +39,6 @@ export default function CustomDrawerContent(props: any) {
     }
   };
 
-  // 3. FUNÇÃO PARA PEGAR AS INICIAIS
   const getInitials = () => {
     if (!userData?.nomeCompleto) return '..';
     const names = userData.nomeCompleto.split(' ');
@@ -30,43 +47,162 @@ export default function CustomDrawerContent(props: any) {
     return `${firstInitial}${lastInitial}`.toUpperCase();
   };
 
-  return (
-    <View style={{ flex: 1 }}>
-      <DrawerContentScrollView {...props}>
-        {/* 4. NOVO CABEÇALHO DO PERFIL */}
-        <TouchableOpacity style={styles.profileContainer} onPress={() => router.push('/(app)/perfil')}>
-          {userData?.profilePicUrl ? (
-            <Image source={{ uri: userData.profilePicUrl }} style={styles.profilePic} />
-          ) : (
-            <View style={styles.initialsContainer}>
-              <Text style={styles.initialsText}>{getInitials()}</Text>
-            </View>
-          )}
-          <Text style={styles.profileName}>{userData?.nomeCompleto || 'Carregando...'}</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.separator} />
+  const renderProfileHeader = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.profileContainer}>
+          <ActivityIndicator color="#007bff" />
+        </View>
+      );
+    }
+    return (
+      <TouchableOpacity style={styles.profileContainer} onPress={() => router.push('/(app)/perfil')}>
+        {userData?.profilePicUrl ? (
+          <Image source={{ uri: userData.profilePicUrl }} style={styles.profilePic} />
+        ) : (
+          <View style={[styles.profilePic, styles.initialsContainer]}>
+            <Text style={styles.initialsText}>{getInitials()}</Text>
+          </View>
+        )}
+        <Text style={styles.profileName}>{userData?.nomeCompleto || 'Visitante'}</Text>
+      </TouchableOpacity>
+    );
+  };
 
-        <DrawerItemList {...props} />
+  const activeRoute = segments[segments.length - 1];
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#f0f2f5' }}>
+      <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
+        {renderProfileHeader()}
+        
+        <View style={styles.buttonsContainer}>
+          <CustomDrawerButton
+            label="Início"
+            iconName="home"
+            onPress={() => router.navigate('/(app)/(tabs)/feed')}
+            isActive={activeRoute === 'feed'}
+          />
+          <CustomDrawerButton
+            label="Nova Postagem"
+            iconName="plus-square"
+            onPress={() => router.navigate('/(app)/novo-post')}
+            isActive={activeRoute === 'novo-post'}
+          />
+          <CustomDrawerButton
+            label="Turmas disponíveis"
+            iconName="calendar"
+            onPress={() => router.navigate('/(app)/agenda')}
+            isActive={activeRoute === 'agenda'}
+          />
+          <CustomDrawerButton
+            label="Rankings"
+            iconName="bar-chart-2"
+            onPress={() => router.navigate('/(app)/ranking')}
+            isActive={activeRoute === 'ranking'}
+          />
+        </View>
+
       </DrawerContentScrollView>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Feather name="log-out" size={22} color="#333" />
+      {/* --- BOTÃO DE LOGOUT ATUALIZADO --- */}
+      <View style={styles.logoutSection}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Feather name="power" size={28} color="#dc3545" />
+        </TouchableOpacity>
         <Text style={styles.logoutButtonText}>Sair</Text>
-      </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // 5. NOVOS ESTILOS PARA O PERFIL
-  profileContainer: { padding: 20, alignItems: 'center' },
-  profilePic: { width: 80, height: 80, borderRadius: 40, marginBottom: 10 },
-  initialsContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#005A9C', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  initialsText: { color: 'white', fontSize: 28, fontWeight: 'bold' },
-  profileName: { fontSize: 18, fontWeight: 'bold' },
-  separator: { borderBottomColor: '#eee', borderBottomWidth: 1, marginVertical: 10 },
+  profileContainer: { 
+    paddingTop: 60,
+    paddingBottom: 20,
+    alignItems: 'center', 
+    backgroundColor: '#f0f2f5',
+    marginBottom: 25,
+  },
+  profilePic: { 
+    width: 100, 
+    height: 100, 
+    borderRadius: 50, 
+    marginBottom: 15,
+    borderWidth: 3,
+    borderColor: 'white',
+  },
+  initialsContainer: { 
+    backgroundColor: '#005A9C', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    borderColor: '#004a80',
+  },
+  initialsText: { 
+    color: 'white', 
+    fontSize: 32, 
+    fontWeight: 'bold' 
+  },
+  profileName: { 
+    fontSize: 20, 
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  buttonsContainer: {
+    paddingHorizontal: 15,
+  },
+  customButton: {
+    backgroundColor: 'white',
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginBottom: 15,
+    flexDirection: 'row',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  customButtonActive: {
+    backgroundColor: '#007bff',
+  },
+  icon: {
+    marginRight: 15,
+  },
+  customButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  customButtonTextActive: {
+    color: 'white',
+  },
   
-  logoutButton: { flexDirection: 'row', alignItems: 'center', padding: 20, margin: 10, marginBottom: 20, borderRadius: 12, backgroundColor: '#f0f0f0' },
-  logoutButtonText: { marginLeft: 15, color: '#333', fontSize: 16, fontWeight: '500' },
+  // --- ESTILOS DO NOVO BOTÃO DE LOGOUT ---
+  logoutSection: { 
+    alignItems: 'center', // Centraliza o botão e o texto
+    marginBottom: 60, // Margem inferior para afastar da borda
+    paddingVertical: 20, // Espaçamento interno vertical
+  },
+  logoutButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30, // Metade da largura/altura para fazer um círculo perfeito
+    backgroundColor: '#ffffff', // Fundo branco para o botão
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3, // Sombra para Android
+    shadowColor: '#000', // Sombra para iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  logoutButtonText: {
+    marginTop: 10, // Espaço entre o botão e o texto
+    color: '#555', 
+    fontSize: 14, 
+    fontWeight: '500' 
+  },
 });
