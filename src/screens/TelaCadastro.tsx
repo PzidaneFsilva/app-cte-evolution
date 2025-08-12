@@ -1,4 +1,4 @@
-// Arquivo: src/screens/TelaCadastro.tsx (VERSÃO COM INPUTS ESTILO PÍLULA)
+// Arquivo: src/screens/TelaCadastro.tsx (VERSÃO COMPLETA)
 
 import { auth, firestore } from '@/config/firebaseConfig';
 import { Feather } from '@expo/vector-icons';
@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import React, { useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaskedTextInput } from "react-native-mask-text";
 
 export default function TelaCadastro() {
@@ -16,9 +16,9 @@ export default function TelaCadastro() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [aceitaTermos, setAceitaTermos] = useState(false); 
 
   const handleCadastro = async () => {
-    // A lógica de cadastro permanece a mesma...
     if (!nome || !sobrenome || !celular || !email || !senha || !confirmarSenha) {
       Alert.alert("Erro", "Por favor, preencha todos os campos.");
       return;
@@ -29,6 +29,10 @@ export default function TelaCadastro() {
     }
     if (celular.length < 15) {
       Alert.alert("Erro", "Número de celular inválido.");
+      return;
+    }
+    if (!aceitaTermos) {
+      Alert.alert("Atenção", "Você deve aceitar os termos de uso para criar sua conta.");
       return;
     }
 
@@ -48,7 +52,6 @@ export default function TelaCadastro() {
       });
       
       console.log("Usuário criado com status pendente!");
-      router.back();
 
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -65,6 +68,12 @@ export default function TelaCadastro() {
       }
     }
   };
+
+  const handleOpenTermsOfService = () => {
+      const url = "https://github.com/PzidaneFsilva/Pol-tica-de-Privacidade---Centro-de-Treinamento-Evolution/blob/main/Politica%20de%20Privacidade%20-%20Centro%20de%20Treinamento%20Evolution.pdf";
+      Linking.openURL(url).catch(err => console.error('Erro ao abrir a URL', err));
+  };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -117,6 +126,20 @@ export default function TelaCadastro() {
           <TextInput style={styles.input} placeholder="Confirmar Senha" value={confirmarSenha} onChangeText={setConfirmarSenha} secureTextEntry placeholderTextColor="#888" />
         </View>
 
+        <View style={styles.termsContainer}>
+            <TouchableOpacity onPress={() => setAceitaTermos(!aceitaTermos)}>
+                <Feather 
+                    name={aceitaTermos ? "check-square" : "square"} 
+                    size={24} 
+                    color={aceitaTermos ? "#007bff" : "#666"} 
+                    style={{ marginRight: 10 }}
+                />
+            </TouchableOpacity>
+            <Text style={styles.termsText}>
+                Eu li e aceito os <Text style={styles.termsLink} onPress={handleOpenTermsOfService}>termos de uso</Text>.
+            </Text>
+        </View>
+
         <TouchableOpacity style={styles.button} onPress={handleCadastro}>
           <Text style={styles.buttonText}>CRIAR CONTA</Text>
         </TouchableOpacity>
@@ -162,15 +185,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 15,
   },
-  // ALTERAÇÃO AQUI
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    borderRadius: 27.5, // <-- Raio da borda alterado para metade da altura (55 / 2)
+    borderRadius: 27.5,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    paddingHorizontal: 20, // Padding aumentado para dar espaço ao ícone
+    paddingHorizontal: 20,
     height: 55, 
     marginBottom: 15, 
   },
@@ -187,11 +209,10 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginRight: 10,
   },
-  // E ALTERAÇÃO AQUI
   button: { 
     height: 55, 
     backgroundColor: '#007bff', 
-    borderRadius: 27.5, // <-- Raio da borda alterado para metade da altura (55 / 2)
+    borderRadius: 27.5,
     justifyContent: 'center', 
     alignItems: 'center', 
     marginTop: 20,
@@ -210,4 +231,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5
   },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  termsText: {
+    fontSize: 14,
+    color: '#666',
+    flexShrink: 1,
+  },
+  termsLink: {
+    color: '#007bff',
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+  }
 });

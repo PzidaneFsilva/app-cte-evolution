@@ -1,4 +1,4 @@
-// Arquivo: app/(app)/novo-post.tsx (VERSÃO COMPLETA E CORRIGIDA)
+// Arquivo: app/(app)/novo-post.tsx (VERSÃO COMPLETA COM FLUXO DE PERMISSÃO CORRIGIDO)
 
 import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { firestore, storage } from '../../src/config/firebaseConfig';
 
 export default function NovoPostScreen() {
@@ -26,18 +26,34 @@ export default function NovoPostScreen() {
   };
 
   const tirarFoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert("Permissão necessária", "Você precisa permitir o acesso à câmera para tirar fotos.");
-      return;
+    let permissionResponse = await ImagePicker.getCameraPermissionsAsync();
+
+    if (permissionResponse.status !== 'granted') {
+        permissionResponse = await ImagePicker.requestCameraPermissionsAsync();
     }
+
+    if (permissionResponse.status !== 'granted') {
+        if (permissionResponse.canAskAgain === false) {
+            Alert.alert(
+                "Permissão Negada",
+                "Você negou o acesso à câmera. Para postar fotos, por favor, habilite a permissão nas configurações do seu dispositivo.",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Abrir Configurações", onPress: () => Linking.openSettings() }
+                ]
+            );
+        } else {
+            Alert.alert("Permissão necessária", "Você precisa permitir o acesso à câmera para tirar fotos.");
+        }
+        return;
+    }
+
     const resultado = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [4, 5],
       quality: 0.5,
     });
     
-    // CORREÇÃO: Modal fecha apenas DEPOIS da ação
     setImagePickerVisible(false);
     if (!resultado.canceled) {
       setImagem(resultado.assets[0].uri);
@@ -45,11 +61,28 @@ export default function NovoPostScreen() {
   };
 
   const escolherDaGaleria = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert("Permissão necessária", "Você precisa permitir o acesso à galeria para postar fotos.");
-      return;
+    let permissionResponse = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+    if (permissionResponse.status !== 'granted') {
+        permissionResponse = await ImagePicker.requestMediaLibraryPermissionsAsync();
     }
+
+    if (permissionResponse.status !== 'granted') {
+        if (permissionResponse.canAskAgain === false) {
+             Alert.alert(
+                "Permissão Negada",
+                "Você negou o acesso à galeria. Para postar fotos, por favor, habilite a permissão nas configurações do seu dispositivo.",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Abrir Configurações", onPress: () => Linking.openSettings() }
+                ]
+            );
+        } else {
+             Alert.alert("Permissão necessária", "É preciso permitir o acesso à galeria para postar fotos.");
+        }
+        return;
+    }
+
     const resultado = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'] as any,
       allowsEditing: true,
@@ -57,7 +90,6 @@ export default function NovoPostScreen() {
       quality: 0.5,
     });
     
-    // CORREÇÃO: Modal fecha apenas DEPOIS da ação
     setImagePickerVisible(false);
     if (!resultado.canceled) {
       setImagem(resultado.assets[0].uri);
@@ -95,7 +127,7 @@ export default function NovoPostScreen() {
         timestamp: serverTimestamp(),
         likes: [],
         commentsCount: 0,
-        isPinned: false, // <-- CORREÇÃO: Garante que o post apareça no feed
+        isPinned: false,
       });
 
       Alert.alert("Sucesso!", "Seu post foi publicado.");

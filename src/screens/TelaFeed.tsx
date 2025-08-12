@@ -1,8 +1,8 @@
-// Arquivo: src/screens/TelaFeed.tsx (VERSÃO COMPLETA E FUNCIONAL)
+// Arquivo: src/screens/TelaFeed.tsx (VERSÃO COMPLETA E ATUALIZADA)
 
 import { Feather } from '@expo/vector-icons';
-import { DrawerActions, useFocusEffect } from '@react-navigation/native';
-import { useNavigation } from 'expo-router';
+import { DrawerActions, useFocusEffect, useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import PostCard from '../components/PostCard';
 import { firestore } from '../config/firebaseConfig';
+import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { Post } from '../types';
 
 export default function TelaFeed() {
@@ -24,9 +25,10 @@ export default function TelaFeed() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
+  // O hook agora retorna a contagem
+  const unreadCount = useUnreadNotifications();
 
   const fetchPosts = useCallback(() => {
-    // Consulta correta: Ordena primeiro por 'isPinned' (fixado) e depois por data
     const q = query(
       collection(firestore, "posts"), 
       orderBy("isPinned", "desc"), 
@@ -68,7 +70,17 @@ export default function TelaFeed() {
             <Feather name="menu" size={26} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Feed</Text>
-        <View style={{ width: 26 }} />
+        <TouchableOpacity onPress={() => router.push('/(app)/notificacoes')}>
+            {/* O ícone de sino agora é envolto por uma View para posicionar a bolha */}
+            <View>
+              <Feather name="bell" size={26} color={unreadCount > 0 ? '#FFC107' : '#333'} />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                </View>
+              )}
+            </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.feedContainer}>
@@ -112,5 +124,22 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', marginTop: 50, color: 'gray', fontSize: 16 },
   feedContainer: {
     flex: 1,
+  },
+  // Estilos para a bolha de notificação
+  notificationBadge: {
+    position: 'absolute',
+    right: -6,
+    top: -3,
+    backgroundColor: 'red',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

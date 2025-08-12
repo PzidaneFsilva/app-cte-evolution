@@ -1,4 +1,4 @@
-// Arquivo: app/(app)/perfil.tsx (VERSÃO CORRIGIDA E COMPLETA)
+// Arquivo: app/(app)/perfil.tsx (VERSÃO COMPLETA COM FLUXO DE PERMISSÃO CORRIGIDO)
 
 import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { firestore, storage } from '../../src/config/firebaseConfig';
 
 export default function PerfilScreen() {
@@ -29,20 +29,35 @@ export default function PerfilScreen() {
   }, [userData]);
 
   const escolherDaGaleria = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert("Permissão necessária", "É preciso permitir o acesso à galeria.");
-      return;
+    let permissionResponse = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+    if (permissionResponse.status !== 'granted') {
+        permissionResponse = await ImagePicker.requestMediaLibraryPermissionsAsync();
     }
+
+    if (permissionResponse.status !== 'granted') {
+        if (permissionResponse.canAskAgain === false) {
+             Alert.alert(
+                "Permissão Negada",
+                "Você negou o acesso à galeria. Para usar esta função, por favor, habilite a permissão nas configurações do seu dispositivo.",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Abrir Configurações", onPress: () => Linking.openSettings() }
+                ]
+            );
+        } else {
+             Alert.alert("Permissão necessária", "É preciso permitir o acesso à galeria.");
+        }
+        return;
+    }
+
     const resultado = await ImagePicker.launchImageLibraryAsync({
-      // Usando a correção que funciona no seu ambiente
       mediaTypes: ['images'] as any,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
     });
     
-    // O modal fecha DEPOIS da ação
     setImagePickerVisible(false);
     if (!resultado.canceled) {
       setImagemUri(resultado.assets?.[0]?.uri || null);
@@ -50,18 +65,34 @@ export default function PerfilScreen() {
   };
   
   const tirarFoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-        Alert.alert("Permissão necessária", "Você precisa permitir o acesso à câmera para tirar fotos.");
+    let permissionResponse = await ImagePicker.getCameraPermissionsAsync();
+
+    if (permissionResponse.status !== 'granted') {
+        permissionResponse = await ImagePicker.requestCameraPermissionsAsync();
+    }
+    
+    if (permissionResponse.status !== 'granted') {
+        if (permissionResponse.canAskAgain === false) {
+            Alert.alert(
+                "Permissão Negada",
+                "Você negou o acesso à câmera. Para usar esta função, por favor, habilite a permissão nas configurações do seu dispositivo.",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Abrir Configurações", onPress: () => Linking.openSettings() }
+                ]
+            );
+        } else {
+            Alert.alert("Permissão necessária", "Você precisa permitir o acesso à câmera para tirar fotos.");
+        }
         return;
     }
+
     const resultado = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.7,
     });
     
-    // O modal fecha DEPOIS da ação
     setImagePickerVisible(false);
     if (!resultado.canceled) {
         setImagemUri(resultado.assets[0].uri);

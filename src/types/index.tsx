@@ -10,7 +10,7 @@ export type Comment = {
   timestamp: any;
 };
 
-// Tipo para um post (adicionando a contagem de comentários)
+// Tipo para um post
 export type Post = {
   id: string;
   userId: string;
@@ -18,8 +18,21 @@ export type Post = {
   userProfilePicUrl?: string;
   texto: string;
   imageUrl?: string;
-  timestamp: any; // O timestamp do Firebase tem um tipo próprio, mas 'any' funciona bem aqui
+  timestamp: any;
   likes: string[];
-  commentsCount: number; // Garanta que esta linha exista
-  isPinned?: boolean; // <-- NOVA PROPRIEDADE PARA FIXAR POSTS
+  commentsCount: number;
+  isPinned?: boolean;
+};
+
+// --- TIPO ATUALIZADO PARA NOTIFICAÇÕES ---
+export type Notification = {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: any;
+  isRead: boolean;
+  userId: string;
+  type: 'announcement' | 'payment' | 'system';
+  senderName?: string;
+  senderProfilePicUrl?: string; // <-- NOVO: URL da foto de quem enviou
 };

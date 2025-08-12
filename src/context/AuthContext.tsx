@@ -1,16 +1,20 @@
-// Arquivo: src/context/AuthContext.tsx (VERSÃO ATUALIZADA)
+// Arquivo: src/context/AuthContext.tsx (VERSÃO CORRIGIDA)
 
 import { auth, firestore } from '@/config/firebaseConfig';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-// 1. ADICIONE A PROPRIEDADE DA FOTO DE PERFIL
+// 1. ADICIONE O CAMPO PARA RASTREAR A ÚLTIMA LEITURA
 interface UserData {
   role: string;
   status: string;
   nomeCompleto?: string;
-  profilePicUrl?: string; // <-- NOVO
+  profilePicUrl?: string; 
+  dataEntrada?: { toDate: () => Date };
+  ultimoPagamento?: { toDate: () => Date };
+  dataInicioCiclo?: { toDate: () => Date };
+  lastNotificationCheck?: { toDate: () => Date }; // <-- NOVO: Guarda o timestamp da última checagem
 }
 
 interface AuthContextType {
@@ -46,7 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: data.role || 'aluno', 
               status: data.status || 'pendente',
               nomeCompleto: data.nomeCompleto,
-              profilePicUrl: data.profilePicUrl // <-- 2. BUSQUE A URL DA FOTO
+              profilePicUrl: data.profilePicUrl,
+              dataEntrada: data.dataEntrada,
+              ultimoPagamento: data.ultimoPagamento,
+              dataInicioCiclo: data.dataInicioCiclo,
+              lastNotificationCheck: data.lastNotificationCheck, // <-- 2. BUSQUE O NOVO CAMPO
             });
           } else {
             setUserData({ role: 'aluno', status: 'pendente' });

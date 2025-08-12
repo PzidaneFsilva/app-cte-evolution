@@ -1,7 +1,8 @@
-// Arquivo: src/screens/TelaLogin.tsx (VERSÃO COM CONTROLO DE POSIÇÃO CORRIGIDO)
+// Arquivo: src/screens/TelaLogin.tsx (VERSÃO COMPLETA E CORRIGIDA)
 
 import { auth } from '@/config/firebaseConfig';
 import { router } from 'expo-router';
+// 1. A FUNÇÃO 'sendPasswordResetEmail' FOI ADICIONADA AQUI
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import React, { useState } from 'react';
 import {
@@ -9,10 +10,11 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
-  SafeAreaView, // Importe o SafeAreaView
+  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -22,7 +24,6 @@ import {
 
 import MinhaLogo from '../assets/images/minha-logor.png';
 
-
 export default function TelaLogin() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -31,7 +32,6 @@ export default function TelaLogin() {
   const [loading, setLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // A sua lógica de handleLogin e handleRedefinirSenha permanece igual
   const handleLogin = async () => {
     if (!email || !senha) {
       Alert.alert("Atenção", "Por favor, preencha e-mail e senha.");
@@ -61,7 +61,9 @@ export default function TelaLogin() {
         setModalVisivel(false);
         setEmailRedefinicao('');
       })
-      .catch((error) => {
+      // 2. O BLOCO CATCH FOI ATUALIZADO
+      .catch((error: any) => {
+        console.error("Erro ao enviar e-mail de redefinição:", error); // Adicionado para depuração
         Alert.alert("Erro", "Ocorreu um erro ao tentar enviar o e-mail.");
       })
       .finally(() => {
@@ -69,15 +71,18 @@ export default function TelaLogin() {
       });
   };
 
+  const handleOpenPrivacyPolicy = () => {
+      const url = "https://github.com/PzidaneFsilva/Pol-tica-de-Privacidade---Centro-de-Treinamento-Evolution/blob/main/Politica%20de%20Privacidade%20-%20Centro%20de%20Treinamento%20Evolution.pdf";
+      Linking.openURL(url).catch(err => console.error('Erro ao abrir a URL', err));
+  };
+
 
   return (
-    // O SafeAreaView garante que o fundo ocupe toda a tela
     <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.container}
         >
-            {/* O Modal permanece igual */}
             <Modal
               animationType="fade"
               transparent={true}
@@ -106,7 +111,6 @@ export default function TelaLogin() {
               </View>
             </Modal>
 
-            {/* O conteúdo principal da tela */}
             <View style={styles.logoContainer}>
               <Image source={MinhaLogo} style={styles.logoImage} />
             </View>
@@ -129,27 +133,24 @@ export default function TelaLogin() {
             <TouchableOpacity style={styles.signupLink} onPress={() => router.push('/cadastro')}>
               <Text style={styles.signupText}>Não possui conta? <Text style={{ fontWeight: 'bold' }}>Faça seu cadastro!</Text></Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.helpButton}>
-              <Text style={styles.helpButtonText}>?</Text>
-            </TouchableOpacity>
         </KeyboardAvoidingView>
+        <TouchableOpacity style={styles.helpButton} onPress={handleOpenPrivacyPolicy}>
+            <Text style={styles.helpButtonText}>?</Text>
+        </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // O SafeAreaView é o pai de todos e tem a cor de fundo
   safeArea: {
     flex: 1,
-    backgroundColor: '#f0f2f5', // Cor de fundo clara
+    backgroundColor: '#f0f2f5',
   },
-  // O container agora usa paddingTop para controlar a posição
   container: {
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 80, // <-- ESTA É A ÚNICA LINHA QUE VOCÊ PRECISA MUDAR
+    paddingTop: 80,
   },
   logoContainer: { marginBottom: 0, alignItems: 'center' },
   logoImage: { width: 180, height: 180, resizeMode: 'contain' },
@@ -163,8 +164,6 @@ const styles = StyleSheet.create({
   signupText: { color: '#555', fontSize: 14 },
   helpButton: { position: 'absolute', right: 20, bottom: 50, width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
   helpButtonText: { fontSize: 20, fontWeight: 'bold', color: '#555' },
-
-  // Estilos do Modal
   modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' },
   modalView: { width: '90%', margin: 20, backgroundColor: 'white', borderRadius: 20, padding: 25, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },

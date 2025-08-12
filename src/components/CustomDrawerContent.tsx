@@ -1,4 +1,4 @@
-// Arquivo: src/components/CustomDrawerContent.tsx (VERSÃO COM NOVO BOTÃO DE SAIR)
+// Arquivo: src/components/CustomDrawerContent.tsx (VERSÃO ATUALIZADA)
 
 import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
@@ -8,20 +8,34 @@ import { signOut } from 'firebase/auth';
 import React from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { auth } from '../config/firebaseConfig';
+import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 
 interface CustomDrawerButtonProps {
   label: string;
   onPress: () => void;
   isActive: boolean;
   iconName?: keyof typeof Feather.glyphMap;
+  badgeCount?: number;
 }
 
-const CustomDrawerButton = ({ label, iconName, onPress, isActive }: CustomDrawerButtonProps) => (
+const CustomDrawerButton = ({ label, iconName, onPress, isActive, badgeCount = 0 }: CustomDrawerButtonProps) => (
   <TouchableOpacity
     style={[styles.customButton, isActive && styles.customButtonActive]}
     onPress={onPress}
   >
-    {iconName && <Feather name={iconName} size={22} color={isActive ? 'white' : '#555'} style={styles.icon} />}
+    <View>
+      <Feather
+        name={iconName}
+        size={22}
+        color={badgeCount > 0 ? '#FFC107' : (isActive ? 'white' : '#555')}
+        style={styles.icon}
+      />
+      {badgeCount > 0 && (
+        <View style={styles.notificationBadgeDrawer}>
+          <Text style={styles.notificationBadgeTextDrawer}>{badgeCount}</Text>
+        </View>
+      )}
+    </View>
     <Text style={[styles.customButtonText, isActive && styles.customButtonTextActive]}>{label}</Text>
   </TouchableOpacity>
 );
@@ -29,6 +43,8 @@ const CustomDrawerButton = ({ label, iconName, onPress, isActive }: CustomDrawer
 export default function CustomDrawerContent(props: any) {
   const { userData, isLoading } = useAuth();
   const segments = useSegments();
+  const isAdminOrStaff = userData?.role === 'administrador' || userData?.role === 'staff';
+  const unreadCount = useUnreadNotifications();
 
   const handleLogout = async () => {
     try {
@@ -42,8 +58,8 @@ export default function CustomDrawerContent(props: any) {
   const getInitials = () => {
     if (!userData?.nomeCompleto) return '..';
     const names = userData.nomeCompleto.split(' ');
-    const firstInitial = names[0]?.[0] || '';
-    const lastInitial = names.length > 1 ? names[names.length - 1]?.[0] || '' : '';
+    const firstInitial = names?.[0]?.[0] || '';
+    const lastInitial = names?.length > 1 ? names?.[names.length - 1]?.[0] || '' : '';
     return `${firstInitial}${lastInitial}`.toUpperCase();
   };
 
@@ -69,19 +85,26 @@ export default function CustomDrawerContent(props: any) {
     );
   };
 
-  const activeRoute = segments[segments.length - 1];
+  const activeRoute = segments?.[segments.length - 1];
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f0f2f5' }}>
       <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
         {renderProfileHeader()}
-        
+
         <View style={styles.buttonsContainer}>
           <CustomDrawerButton
             label="Início"
             iconName="home"
             onPress={() => router.navigate('/(app)/(tabs)/feed')}
             isActive={activeRoute === 'feed'}
+          />
+          <CustomDrawerButton
+            label="Notificações"
+            iconName="bell"
+            onPress={() => router.navigate('/(app)/notificacoes')}
+            isActive={activeRoute === 'notificacoes'}
+            badgeCount={unreadCount}
           />
           <CustomDrawerButton
             label="Nova Postagem"
@@ -101,11 +124,11 @@ export default function CustomDrawerContent(props: any) {
             onPress={() => router.navigate('/(app)/ranking')}
             isActive={activeRoute === 'ranking'}
           />
+           {/* A CONDIÇÃO PARA O BOTÃO "Enviar Aviso" FOI REMOVIDA */}
         </View>
 
       </DrawerContentScrollView>
 
-      {/* --- BOTÃO DE LOGOUT ATUALIZADO --- */}
       <View style={styles.logoutSection}>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Feather name="power" size={28} color="#dc3545" />
@@ -117,34 +140,34 @@ export default function CustomDrawerContent(props: any) {
 }
 
 const styles = StyleSheet.create({
-  profileContainer: { 
+  profileContainer: {
     paddingTop: 60,
     paddingBottom: 20,
-    alignItems: 'center', 
+    alignItems: 'center',
     backgroundColor: '#f0f2f5',
     marginBottom: 25,
   },
-  profilePic: { 
-    width: 100, 
-    height: 100, 
-    borderRadius: 50, 
+  profilePic: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     marginBottom: 15,
     borderWidth: 3,
     borderColor: 'white',
   },
-  initialsContainer: { 
-    backgroundColor: '#005A9C', 
-    justifyContent: 'center', 
+  initialsContainer: {
+    backgroundColor: '#005A9C',
+    justifyContent: 'center',
     alignItems: 'center',
     borderColor: '#004a80',
   },
-  initialsText: { 
-    color: 'white', 
-    fontSize: 32, 
-    fontWeight: 'bold' 
+  initialsText: {
+    color: 'white',
+    fontSize: 32,
+    fontWeight: 'bold'
   },
-  profileName: { 
-    fontSize: 20, 
+  profileName: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -179,30 +202,44 @@ const styles = StyleSheet.create({
   customButtonTextActive: {
     color: 'white',
   },
-  
-  // --- ESTILOS DO NOVO BOTÃO DE LOGOUT ---
-  logoutSection: { 
-    alignItems: 'center', // Centraliza o botão e o texto
-    marginBottom: 60, // Margem inferior para afastar da borda
-    paddingVertical: 20, // Espaçamento interno vertical
+  logoutSection: {
+    alignItems: 'center',
+    marginBottom: 60,
+    paddingVertical: 20,
   },
   logoutButton: {
     width: 60,
     height: 60,
-    borderRadius: 30, // Metade da largura/altura para fazer um círculo perfeito
-    backgroundColor: '#ffffff', // Fundo branco para o botão
+    borderRadius: 30,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
+    elevation: 3,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
   },
   logoutButtonText: {
-    marginTop: 10, // Espaço entre o botão e o texto
-    color: '#555', 
-    fontSize: 14, 
-    fontWeight: '500' 
+    marginTop: 10,
+    color: '#555',
+    fontSize: 14,
+    fontWeight: '500'
+  },
+  notificationBadgeDrawer: {
+    position: 'absolute',
+    right: 10,
+    top: -5,
+    backgroundColor: 'red',
+    borderRadius: 9,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBadgeTextDrawer: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
