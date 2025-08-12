@@ -25,3 +25,7 @@ yarn-error.log*
 # Arquivos do sistema operacional
 .DS_Store
 Thumbs.db
+
+# Ignorar pastas nativas para usar o fluxo gerenciado do EAS Build
+/android
+/ios
