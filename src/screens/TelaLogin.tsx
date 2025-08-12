@@ -1,9 +1,9 @@
-// Arquivo: src/screens/TelaLogin.tsx (VERSÃO COMPLETA E CORRIGIDA)
+// Arquivo: src/screens/TelaLogin.tsx (VERSÃO MODULAR CORRIGIDA)
 
 import { auth } from '@/config/firebaseConfig';
 import { router } from 'expo-router';
-// 1. A FUNÇÃO 'sendPasswordResetEmail' FOI ADICIONADA AQUI
-import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
+// ALTERAÇÃO AQUI: A função 'signOut' foi adicionada à lista de importações
+import { sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -39,10 +39,31 @@ export default function TelaLogin() {
     }
     setLoginLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, senha);
-      console.log("Login bem-sucedido!");
-    } catch (error) {
-      Alert.alert("Erro", "E-mail ou senha inválidos.");
+      const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+
+      if (!userCredential.user.emailVerified) {
+          Alert.alert(
+              "Verificação Pendente",
+              "Seu e-mail ainda não foi verificado. Por favor, cheque sua caixa de entrada e o spam.",
+              [
+                  { text: "OK" },
+                  { 
+                      text: "Reenviar E-mail", 
+                      onPress: () => sendEmailVerification(userCredential.user) 
+                  }
+              ]
+          );
+          await signOut(auth); // A função signOut agora é chamada corretamente
+      } else {
+        console.log("Login bem-sucedido e e-mail verificado!");
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          Alert.alert("Erro", "E-mail ou senha inválidos.");
+      } else {
+        Alert.alert("Erro de Login", "Não foi possível entrar. Verifique sua conexão ou tente novamente mais tarde.");
+        console.error("Erro de login não tratado:", error);
+      }
     } finally {
       setLoginLoading(false);
     }
@@ -61,9 +82,8 @@ export default function TelaLogin() {
         setModalVisivel(false);
         setEmailRedefinicao('');
       })
-      // 2. O BLOCO CATCH FOI ATUALIZADO
       .catch((error: any) => {
-        console.error("Erro ao enviar e-mail de redefinição:", error); // Adicionado para depuração
+        console.error("Erro ao enviar e-mail de redefinição:", error);
         Alert.alert("Erro", "Ocorreu um erro ao tentar enviar o e-mail.");
       })
       .finally(() => {
@@ -118,19 +138,38 @@ export default function TelaLogin() {
             <Text style={styles.title}>Centro de Treinamento Evolution</Text>
 
             <View style={styles.inputWrapper}>
-              <TextInput style={styles.input} placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-              <TextInput style={styles.input} placeholder="Senha" value={senha} onChangeText={setSenha} secureTextEntry />
+              <TextInput 
+                style={styles.input} 
+                placeholder="E-mail" 
+                value={email} 
+                onChangeText={setEmail} 
+                keyboardType="email-address" 
+                autoCapitalize="none" 
+                editable={!loginLoading}
+              />
+              <TextInput 
+                style={styles.input} 
+                placeholder="Senha" 
+                value={senha} 
+                onChangeText={setSenha} 
+                secureTextEntry 
+                editable={!loginLoading}
+              />
             </View>
 
             <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loginLoading}>
-              <Text style={styles.buttonText}>{loginLoading ? 'ENTRANDO...' : 'ENTRAR'}</Text>
+              {loginLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>ENTRAR</Text>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setModalVisivel(true)}>
+            <TouchableOpacity onPress={() => setModalVisivel(true)} disabled={loginLoading}>
               <Text style={styles.linkText}>Esqueceu sua senha?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.signupLink} onPress={() => router.push('/cadastro')}>
+            <TouchableOpacity style={styles.signupLink} onPress={() => router.push('/cadastro')} disabled={loginLoading}>
               <Text style={styles.signupText}>Não possui conta? <Text style={{ fontWeight: 'bold' }}>Faça seu cadastro!</Text></Text>
             </TouchableOpacity>
         </KeyboardAvoidingView>

@@ -1,4 +1,4 @@
-// Arquivo: app/(app)/ranking.tsx (VERSÃO COM NOVO BOTÃO DE CONFIGURAÇÕES)
+// Arquivo: app/(app)/ranking.tsx (VERSÃO COM PERMISSÃO DE LOCALIZAÇÃO)
 
 import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
@@ -6,7 +6,9 @@ import { DrawerActions } from '@react-navigation/native';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { collection, doc, getDocs, limit, orderBy, query, setDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+// Importações necessárias para a funcionalidade de localização e links
+import * as Location from 'expo-location';
+import { ActivityIndicator, Alert, FlatList, Image, Linking, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { firestore } from '../../src/config/firebaseConfig';
 import { useCountdown } from '../../src/hooks/useCountdown';
 
@@ -121,18 +123,46 @@ export default function RankingScreen() {
     const handleParticipar = async () => {
         if (!user || !desafio || !desafio.ativo) return;
         setIsJoining(true);
+
         try {
+            // 1. Pedir permissão de localização
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert(
+                    "Permissão Necessária",
+                    "Para participar do desafio, você precisa permitir o acesso à sua localização. Usamos isso para validar seus check-ins.",
+                    [
+                        { text: "Cancelar", style: "cancel" },
+                        { text: "Abrir Configurações", onPress: () => Linking.openSettings() }
+                    ]
+                );
+                setIsJoining(false);
+                return;
+            }
+
+            // 2. Obter a localização atual
+            Alert.alert("Obtendo Localização", "Estamos registrando sua localização inicial para o desafio...");
+            const location = await Location.getCurrentPositionAsync({});
+
+            // 3. Salvar os dados no Firestore, incluindo a localização
             const participanteRef = doc(firestore, `desafios/${desafio.id}/participantes`, user.uid);
             await setDoc(participanteRef, {
                 nomeCompleto: userData?.nomeCompleto || 'Usuário',
                 profilePicUrl: userData?.profilePicUrl || '',
                 checkins: 0,
+                initialLocation: { // Novo campo com a localização
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                    timestamp: new Date()
+                }
             });
+
             setIsParticipating(true);
             Alert.alert("Sucesso!", "Você está participando do desafio. Boa sorte!");
+
         } catch (error) {
             console.error("Erro ao participar do desafio:", error);
-            Alert.alert("Erro", "Não foi possível se inscrever no desafio.");
+            Alert.alert("Erro", "Não foi possível se inscrever no desafio. Verifique se o GPS está ativado.");
         } finally {
             setIsJoining(false);
         }
@@ -150,7 +180,7 @@ export default function RankingScreen() {
             }
 
             if (desafioSnap.empty) {
-                setDesafio(null); 
+                setDesafio(null);
                 setRanking([]);
                 return;
             }
@@ -194,7 +224,7 @@ export default function RankingScreen() {
         setRefreshing(true);
         fetchRankingData();
     }, [fetchRankingData]);
-    
+
     useFocusEffect(
         useCallback(() => {
             setLoading(true);
@@ -236,7 +266,7 @@ export default function RankingScreen() {
     const handleValidarCheckin = async () => { /* ... Lógica futura de validação ... */ };
 
     const renderActiveChallenge = () => (
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
@@ -332,7 +362,6 @@ export default function RankingScreen() {
             
             {renderContent()}
             
-            {/* --- BOTÃO FAB ATUALIZADO --- */}
             {isAdmin && (
               <TouchableOpacity style={styles.fab} onPress={() => router.push('/(app)/criar-desafio')}>
                 <Feather name="settings" size={28} color="#005A9C" />
@@ -473,19 +502,18 @@ const styles = StyleSheet.create({
     buttonConfirm: { backgroundColor: '#28a745' },
     textStyle: { color: 'white', fontWeight: 'bold', textAlign: 'center' },
     
-    // --- ESTILO DO BOTÃO FAB ATUALIZADO ---
     fab: {
       position: 'absolute',
       width: 60,
       height: 60,
       borderRadius: 30,
-      backgroundColor: '#FFFFFF', // Fundo branco para um look mais "clean"
+      backgroundColor: '#FFFFFF',
       justifyContent: 'center',
       alignItems: 'center',
       right: 30,
       bottom: 90,
-      elevation: 4, // Sombra para Android
-      shadowColor: '#000', // Sombra para iOS
+      elevation: 4,
+      shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.2,
       shadowRadius: 3,

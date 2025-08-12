@@ -1,10 +1,10 @@
-// Arquivo: app/(app)/(tabs)/admin.tsx (VERSÃO COM ORDENAÇÃO INTELIGENTE)
+// Arquivo: app/(app)/(tabs)/admin.tsx (VERSÃO COM EXCLUSÃO DE USUÁRIO CORRIGIDA)
 
 import { firestore } from '@/config/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useCallback, useState } from 'react';
 import {
@@ -32,7 +32,6 @@ interface Usuario {
   dataEntrada?: { toDate: () => Date };
   ultimoPagamento?: { toDate: () => Date };
   dataInicioCiclo?: { toDate: () => Date };
-  // Propriedade adicionada para ajudar na ordenação
   proximoVencimento?: Date | null;
 }
 
@@ -47,10 +46,10 @@ const calcularProximoVencimento = (dataInicioCiclo?: Date, dataEntrada?: Date, u
 const deveExibirBotaoPagamento = (dataVencimento: Date | null): boolean => {
     if (!dataVencimento) return false;
     const hoje = new Date();
-    const dataLimite = new Date(dataVencimento.getTime() + (24 * 60 * 60 * 1000)); 
+    const dataLimite = new Date(dataVencimento.getTime() + (24 * 60 * 60 * 1000));
     const diffEmMs = dataLimite.getTime() - hoje.getTime();
     const diffEmDias = diffEmMs / (1000 * 60 * 60 * 24);
-    return diffEmDias <= 5 && diffEmDias >= 0; 
+    return diffEmDias <= 5 && diffEmDias >= 0;
 };
 
 
@@ -79,7 +78,7 @@ export default function AdminPanelScreen() {
       for (const docSnapshot of snapParaVerificar.docs) {
           const u = docSnapshot.data() as Usuario;
           const dataVencimento = calcularProximoVencimento(u.dataInicioCiclo?.toDate(), u.dataEntrada?.toDate(), u.ultimoPagamento?.toDate());
-          
+
           if (dataVencimento && hoje > dataVencimento) {
               await updateDoc(doc(firestore, "usuarios", docSnapshot.id), { status: 'suspenso' });
           }
@@ -91,10 +90,7 @@ export default function AdminPanelScreen() {
 
       const qAprovados = query(collection(firestore, "usuarios"), where("status", "==", "aprovado"));
       const snapAprovados = await getDocs(qAprovados);
-      
-      // ##################################################################
-      // INÍCIO DA LÓGICA DE ORDENAÇÃO INTELIGENTE
-      // ##################################################################
+
       const aprovadosData = snapAprovados.docs.map(doc => {
           const data = { id: doc.id, ...doc.data() } as Usuario;
           data.proximoVencimento = calcularProximoVencimento(
@@ -108,36 +104,29 @@ export default function AdminPanelScreen() {
       aprovadosData.sort((a, b) => {
           const roleOrder = { staff: 0, administrador: 1, aluno: 2 };
 
-          // 1. Ordena por hierarquia de cargo
           if (roleOrder[a.role] !== roleOrder[b.role]) {
               return roleOrder[a.role] - roleOrder[b.role];
           }
 
-          // 2. Se o cargo for o mesmo
           if (a.role === 'aluno') {
               const vencA = a.proximoVencimento;
               const vencB = b.proximoVencimento;
 
               if (vencA && vencB) {
-                  // Se as datas de vencimento forem diferentes, ordena pela mais próxima
                   if (vencA.getTime() !== vencB.getTime()) {
                       return vencA.getTime() - vencB.getTime();
                   }
               } else if (vencA) {
-                  return -1; // 'a' tem data e 'b' não, 'a' vem primeiro
+                  return -1;
               } else if (vencB) {
-                  return 1; // 'b' tem data e 'a' não, 'b' vem primeiro
+                  return 1;
               }
           }
-          
-          // 3. Para todos os outros casos (mesmo cargo ou datas iguais), ordena por nome
+
           return a.nomeCompleto.localeCompare(b.nomeCompleto);
       });
 
       setUsuariosAtivos(aprovadosData);
-      // ##################################################################
-      // FIM DA LÓGICA DE ORDENAÇÃO
-      // ##################################################################
 
       const qSuspensos = query(collection(firestore, "usuarios"), where("status", "==", "suspenso"));
       const snapSuspensos = await getDocs(qSuspensos);
@@ -167,9 +156,9 @@ export default function AdminPanelScreen() {
         if (updates.status === 'aprovado' && !currentUserData.dataEntrada) {
           updates.dataEntrada = new Date() as any;
         }
-        
+
         if (isReactivating && updates.status === 'aprovado') {
-            updates.ultimoPagamento = new Date() as any; 
+            updates.ultimoPagamento = new Date() as any;
             updates.dataInicioCiclo = new Date() as any;
         }
 
@@ -178,7 +167,7 @@ export default function AdminPanelScreen() {
         if (updates.status === 'aprovado') {
             successMessage = isReactivating ? "Usuário foi reativado!" : "Usuário aprovado com sucesso!";
         }
-        
+
         Alert.alert("Sucesso!", successMessage);
         fetchUsuarios();
     } catch (error) {
@@ -190,7 +179,7 @@ export default function AdminPanelScreen() {
   const handleUpdateCycleDate = (day: any) => {
     if (!userToEditDate) return;
     const novaData = new Date(day.timestamp + (new Date().getTimezoneOffset() * 60000));
-    
+
     Alert.alert(
       "Confirmar Data",
       `Deseja definir ${novaData.toLocaleDateString('pt-BR')} como a nova data de início do ciclo para ${userToEditDate.nomeCompleto}?`,
@@ -201,7 +190,7 @@ export default function AdminPanelScreen() {
           onPress: async () => {
             const userRef = doc(firestore, "usuarios", userToEditDate.id);
             try {
-              await updateDoc(userRef, { 
+              await updateDoc(userRef, {
                 dataInicioCiclo: novaData,
                 ultimoPagamento: novaData,
                 status: 'aprovado'
@@ -218,41 +207,26 @@ export default function AdminPanelScreen() {
       ]
     );
   };
-  
+
   const handleConfirmPayment = async (userId: string) => {
     try {
         const userRef = doc(firestore, "usuarios", userId);
         const newPaymentDate = new Date();
-        await updateDoc(userRef, { 
+        await updateDoc(userRef, {
           ultimoPagamento: newPaymentDate,
           dataInicioCiclo: newPaymentDate
         });
         Alert.alert("Sucesso!", "Pagamento confirmado. O ciclo foi renovado.");
-        fetchUsuarios(); 
+        fetchUsuarios();
     } catch (error) {
         console.error("Erro ao confirmar pagamento:", error);
         Alert.alert("Erro", "Não foi possível confirmar o pagamento.");
     }
   };
-  
+
   const handleDeleteUser = (usuario: Usuario) => {
     setUserToDelete(usuario);
     setDeleteModalVisible(true);
-  };
-
-  const banUser = async () => {
-    if (!userToDelete) return;
-    try {
-      await deleteDoc(doc(firestore, "usuarios", userToDelete.id));
-      Alert.alert("Sucesso!", `O usuário "${userToDelete.nomeCompleto}" foi banido e não poderá criar uma nova conta com este e-mail.`);
-      fetchUsuarios();
-    } catch (error) {
-      console.error("Erro ao banir usuário:", error);
-      Alert.alert("Erro", "Não foi possível banir o usuário.");
-    } finally {
-      setDeleteModalVisible(false);
-      setUserToDelete(null);
-    }
   };
 
   const fullyDeleteUser = async () => {
@@ -271,7 +245,7 @@ export default function AdminPanelScreen() {
         setUserToDelete(null);
     }
   };
-  
+
   const renderUsuarioPendente = ({ item }: { item: Usuario }) => (
     <View style={styles.userCard}>
       <View style={styles.userInfo}>
@@ -302,7 +276,7 @@ export default function AdminPanelScreen() {
           <View style={styles.userInfo}>
               <Text style={styles.userName}>{item.nomeCompleto}</Text>
               <Text style={styles.entryDateText}>{dateLabel} {formattedDate}</Text>
-              <Text style={styles.vencimentoText}>Próx. Vencimento: {formattedVencimento}</Text> 
+              <Text style={styles.vencimentoText}>Próx. Vencimento: {formattedVencimento}</Text>
               <Text style={[styles.roleBadge, styles[item.role]]}>{item.role.toUpperCase()}</Text>
           </View>
           <View style={styles.actions}>
@@ -341,7 +315,7 @@ export default function AdminPanelScreen() {
       </View>
     );
   };
-  
+
   const renderUsuarioSuspenso = ({ item }: { item: Usuario }) => (
     <View style={styles.userCard}>
       <View style={styles.userInfo}>
@@ -388,24 +362,20 @@ export default function AdminPanelScreen() {
         </TouchableOpacity>
       </View>
       {renderLista()}
-      
+
       <Modal animationType="fade" transparent={true} visible={isDeleteModalVisible} onRequestClose={() => setDeleteModalVisible(false)}>
         <Pressable style={styles.deleteModalBackdrop} onPress={() => setDeleteModalVisible(false)}>
             <Pressable style={styles.deleteModalView}>
-                <Text style={styles.deleteModalTitle}>Gerenciar Usuário</Text>
-                <Text style={styles.deleteModalSubtitle}>O que você deseja fazer com "{userToDelete?.nomeCompleto}"?</Text>
-                
-                <TouchableOpacity style={[styles.deleteModalButton, styles.banButton]} onPress={banUser}>
-                    <Feather name="slash" size={20} color="white" style={{marginRight: 10}} />
-                    <Text style={styles.deleteModalButtonText}>Banir Usuário</Text>
-                </TouchableOpacity>
-                <Text style={styles.buttonDescription}>Impede o login e um novo cadastro com o mesmo e-mail.</Text>
+                <Text style={styles.deleteModalTitle}>Excluir Usuário</Text>
+                <Text style={styles.deleteModalSubtitle}>
+                    Tem certeza que deseja excluir "{userToDelete?.nomeCompleto}" permanentemente?
+                    Esta ação apaga a conta de autenticação e todos os dados do usuário, liberando o e-mail para um novo cadastro.
+                </Text>
 
                 <TouchableOpacity style={[styles.deleteModalButton, styles.confirmDeleteButton]} onPress={fullyDeleteUser}>
                     <Feather name="trash-2" size={20} color="white" style={{marginRight: 10}} />
-                    <Text style={styles.deleteModalButtonText}>Excluir Permanentemente</Text>
+                    <Text style={styles.deleteModalButtonText}>Sim, Excluir Permanentemente</Text>
                 </TouchableOpacity>
-                <Text style={styles.buttonDescription}>Apaga tudo e libera o e-mail para um novo cadastro.</Text>
 
                 <TouchableOpacity style={styles.cancelLink} onPress={() => setDeleteModalVisible(false)}>
                     <Text style={styles.cancelLinkText}>Cancelar</Text>
@@ -473,10 +443,8 @@ const styles = StyleSheet.create({
     deleteModalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 10,},
     deleteModalSubtitle: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 25, lineHeight: 22, },
     deleteModalButton: { width: '100%', paddingVertical: 14, borderRadius: 12, marginBottom: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
-    banButton: { backgroundColor: '#ffc107' },
     confirmDeleteButton: { backgroundColor: '#dc3545' },
     deleteModalButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-    buttonDescription: { fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 20, width: '90%' },
     cancelLink: { marginTop: 15 },
     cancelLinkText: { color: '#007bff', fontSize: 16 },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center' },

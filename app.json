@@ -30,7 +30,9 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -52,6 +54,12 @@
         }
       ]
     ],
-    "scheme": "app-final"
+    "scheme": "app-final",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "97e80cb0-a064-4d10-adda-b44034048913"
+      }
+    }
   }
 }
